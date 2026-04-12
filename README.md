@@ -31,6 +31,16 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This app lives under **`web-app/`** in the monorepo. In Vercel → Project → **Settings → General → Root Directory**, set **`web-app`**. Framework preset **Next.js** is detected automatically.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Connect the Git repository and set the root directory to **`web-app`**.
+2. Under **Settings → Environment Variables**, add for **Production** (and **Preview** if you use the dashboard on preview URLs):
+   - **`BACKEND_ORIGIN`** — e.g. `http://3.109.235.112:3040` (or omit if you rely on committed `.env.production`).
+   - **`ADMIN_API_KEY`** — same value the backend expects for `x-admin-key` on admin API routes (mark as **Sensitive**).
+3. Deploy. Build command is `next build` (default); Node **20.19+** is required (`package.json` `engines`).
+
+The dashboard calls the backend through **`/api/backend/*`** (server-side proxy). See `.env.example` for local development.
+
+On **Vercel Hobby**, serverless routes have a **~10s** execution limit; if admin API calls time out, upgrade the plan or add `export const maxDuration = 60` in `src/app/api/backend/[...path]/route.ts` (supported on Pro).
+
+More detail: [Next.js on Vercel](https://nextjs.org/docs/app/building-your-application/deploying).
