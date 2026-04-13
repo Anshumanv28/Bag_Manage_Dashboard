@@ -1,5 +1,11 @@
 export type Operator = { phone: string; name: string };
 
+export type CreateOperatorInput = {
+  phone: string;
+  name: string;
+  password: string;
+};
+
 export type Booking = {
   id: string;
   candidateId: string;
@@ -64,6 +70,15 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function listOperators(): Promise<{ operators: Operator[] }> {
   return apiFetch(`/api/backend/api/v1/operators`);
+}
+
+export function createOperator(
+  input: CreateOperatorInput,
+): Promise<{ operator: Operator }> {
+  return apiFetch(`/api/backend/api/v1/operators`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export function listBookings(params: {

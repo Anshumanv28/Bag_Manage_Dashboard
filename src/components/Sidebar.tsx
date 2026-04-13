@@ -7,6 +7,7 @@ const nav = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/bookings", label: "Bookings" },
   { href: "/dashboard/sync", label: "Sync" },
+  { href: "/dashboard/operators", label: "Operators" },
 ];
 
 export function Sidebar() {
