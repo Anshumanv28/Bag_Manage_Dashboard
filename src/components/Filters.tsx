@@ -90,7 +90,7 @@ export function FiltersBar({
           </span>
           <select
             value={value.operatorId}
-            onChange={(e) => onChange({ ...value, operatorId: e.target.value as any })}
+            onChange={(e) => onChange({ ...value, operatorId: e.target.value })}
             className="h-10 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-900"
           >
             <option value="">All</option>

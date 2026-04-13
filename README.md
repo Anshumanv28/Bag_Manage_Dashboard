@@ -35,9 +35,9 @@ This app lives under **`web-app/`** in the monorepo. In Vercel → Project → *
 
 1. Connect the Git repository and set the root directory to **`web-app`**.
 2. Under **Settings → Environment Variables**, add for **Production** (and **Preview** if you use the dashboard on preview URLs):
-   - **`BACKEND_ORIGIN`** — e.g. `http://3.109.235.112:3040` (or omit if you rely on committed `.env.production`).
+   - **`BACKEND_ORIGIN`** — e.g. `http://3.109.235.112:3040` (see `.env.example`).
    - **`ADMIN_API_KEY`** — same value the backend expects for `x-admin-key` on admin API routes (mark as **Sensitive**).
-3. Deploy. Build command is `next build` (default). In Vercel → **Settings → General → Node.js Version**, choose **20.x** or newer (`package.json` `engines`).
+3. Deploy. **`npm run build`** runs **ESLint** then **`next build`** (also set explicitly in `vercel.json`). In Vercel → **Settings → General → Node.js Version**, choose **20.x** or newer (`package.json` `engines`).
 
 The dashboard calls the backend through **`/api/backend/*`** (server-side proxy). See `.env.example` for local development.
 

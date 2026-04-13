@@ -45,7 +45,7 @@ export default function SyncPage() {
       }),
   });
 
-  const points = q.data?.series ?? [];
+  const points = useMemo(() => q.data?.series ?? [], [q.data]);
   const totals = useMemo(() => {
     let events = 0;
     let mutations = 0;

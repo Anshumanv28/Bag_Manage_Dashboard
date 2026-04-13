@@ -20,12 +20,15 @@ export default function BookingsPage() {
     [filters.from, filters.to],
   );
 
+  const statusParam: "active" | "complete" | undefined =
+    filters.status === "" ? undefined : filters.status;
+
   const q = useQuery({
     queryKey: ["bookings", filters, cursor],
     queryFn: () =>
       listBookings({
         ...range,
-        status: (filters.status || undefined) as any,
+        status: statusParam,
         operatorId: filters.operatorId || undefined,
         rackId: filters.rackId || undefined,
         candidateId: filters.candidateId || undefined,
