@@ -7,6 +7,7 @@ import { StatCard } from "@/components/StatCard";
 import {
   bookingSummary,
   bookingTimeseries,
+  activitiesSummary,
   syncTimeseries,
 } from "@/lib/api";
 import { useMemo, useState } from "react";
@@ -73,6 +74,15 @@ export default function DashboardOverviewPage() {
       }),
   });
 
+  const actQ = useQuery({
+    queryKey: ["activitiesSummary", filters],
+    queryFn: () =>
+      activitiesSummary({
+        ...range,
+        operatorId: filters.operatorId || undefined,
+      }),
+  });
+
   const chartData = useMemo(() => {
     const created = tsQ.data?.created ?? [];
     const completed = tsQ.data?.completed ?? [];
@@ -89,6 +99,14 @@ export default function DashboardOverviewPage() {
   }, [tsQ.data]);
 
   const syncData = syncQ.data?.series ?? [];
+  const counts = actQ.data?.counts;
+  const completionRatio = useMemo(() => {
+    const active = summaryQ.data?.active ?? 0;
+    const complete = summaryQ.data?.complete ?? 0;
+    if (!summaryQ.data) return null;
+    if (active === 0) return complete > 0 ? Infinity : 0;
+    return complete / active;
+  }, [summaryQ.data]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -125,6 +143,40 @@ export default function DashboardOverviewPage() {
                 ? "…"
                 : "—"
           }
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+        <StatCard
+          label="Complete/active ratio"
+          value={
+            completionRatio === null
+              ? summaryQ.isLoading
+                ? "…"
+                : "—"
+              : completionRatio === Infinity
+                ? "∞"
+                : completionRatio.toFixed(2)
+          }
+          sublabel={
+            summaryQ.data ? `${summaryQ.data.complete} complete / ${summaryQ.data.active} active` : undefined
+          }
+        />
+        <StatCard
+          label="Candidate scans"
+          value={counts ? String(counts.candidate_scanned) : actQ.isLoading ? "…" : "—"}
+        />
+        <StatCard
+          label="Rack scans"
+          value={counts ? String(counts.rack_scanned) : actQ.isLoading ? "…" : "—"}
+        />
+        <StatCard
+          label="Deposit confirms"
+          value={counts ? String(counts.deposit_confirmed) : actQ.isLoading ? "…" : "—"}
+        />
+        <StatCard
+          label="Return confirms"
+          value={counts ? String(counts.return_confirmed) : actQ.isLoading ? "…" : "—"}
         />
       </div>
 

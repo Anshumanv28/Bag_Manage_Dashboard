@@ -10,7 +10,8 @@ function isAdminPath(path: string): boolean {
   return (
     path.startsWith("api/v1/operators") ||
     path.startsWith("api/v1/analytics") ||
-    path.startsWith("api/v1/bookings")
+    path.startsWith("api/v1/bookings") ||
+    path.startsWith("api/v1/flagged-bookings")
   );
 }
 

@@ -1,4 +1,9 @@
-export type Operator = { phone: string; name: string };
+export type Operator = {
+  phone: string;
+  name: string;
+  depositEnabled: boolean;
+  retrieveEnabled: boolean;
+};
 
 export type CreateOperatorInput = {
   phone: string;
@@ -52,6 +57,45 @@ export type SyncTimeseriesResponse = {
   series: SyncSeriesPoint[];
 };
 
+export type SyncLatestRow = {
+  operatorId: string;
+  deviceId: string;
+  createdAt: string;
+  mutationCount: number;
+  okCount: number;
+  errorCount: number;
+};
+
+export type SyncLatestResponse = { rows: SyncLatestRow[] };
+
+export type SyncEventRow = {
+  id: string;
+  operatorId: string;
+  deviceId: string;
+  createdAt: string;
+  mutationCount: number;
+  okCount: number;
+  errorCount: number;
+};
+
+export type SyncEventsResponse = {
+  rows: SyncEventRow[];
+  nextCursor: string | null;
+};
+
+export type ActivitiesSummaryResponse = {
+  from: string;
+  to: string;
+  operatorId: string | null;
+  deviceId: string | null;
+  counts: {
+    candidate_scanned: number;
+    rack_scanned: number;
+    deposit_confirmed: number;
+    return_confirmed: number;
+  };
+};
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -79,6 +123,57 @@ export function createOperator(
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function patchOperator(
+  phone: string,
+  body: Partial<{
+    name: string;
+    password: string;
+    depositEnabled: boolean;
+    retrieveEnabled: boolean;
+  }>,
+): Promise<{ operator: Operator }> {
+  return apiFetch(`/api/backend/api/v1/operators/${encodeURIComponent(phone)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export type FlaggedBookingRow = {
+  id: string;
+  bookingId: string;
+  reason: string;
+  createdAt: string;
+  booking: {
+    id: string;
+    candidateId: string;
+    rackId: string;
+    operatorId: string;
+    status: string;
+    createdAt: string;
+    completedAt: string | null;
+  };
+};
+
+export type FlaggedBookingsResponse = {
+  flagged: FlaggedBookingRow[];
+  nextCursor: string | null;
+};
+
+export function listFlaggedBookings(params: {
+  limit?: number;
+  cursor?: string;
+}): Promise<FlaggedBookingsResponse> {
+  const url = new URL(
+    `/api/backend/api/v1/flagged-bookings`,
+    window.location.origin,
+  );
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === "") continue;
+    url.searchParams.set(k, String(v));
+  }
+  return apiFetch(url.pathname + "?" + url.searchParams.toString());
 }
 
 export function listBookings(params: {
@@ -150,6 +245,52 @@ export function syncTimeseries(params: {
 }): Promise<SyncTimeseriesResponse> {
   const url = new URL(
     `/api/backend/api/v1/analytics/sync/timeseries`,
+    window.location.origin,
+  );
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === "") continue;
+    url.searchParams.set(k, String(v));
+  }
+  return apiFetch(url.pathname + "?" + url.searchParams.toString());
+}
+
+export function syncLatest(params: {
+  limit?: number;
+  operatorId?: string;
+  activeOnly?: boolean;
+}): Promise<SyncLatestResponse> {
+  const url = new URL(`/api/backend/api/v1/analytics/sync/latest`, window.location.origin);
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === "") continue;
+    url.searchParams.set(k, String(v));
+  }
+  return apiFetch(url.pathname + "?" + url.searchParams.toString());
+}
+
+export function syncEvents(params: {
+  from: string;
+  to: string;
+  operatorId?: string;
+  deviceId?: string;
+  limit?: number;
+  cursor?: string;
+}): Promise<SyncEventsResponse> {
+  const url = new URL(`/api/backend/api/v1/analytics/sync/events`, window.location.origin);
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === "") continue;
+    url.searchParams.set(k, String(v));
+  }
+  return apiFetch(url.pathname + "?" + url.searchParams.toString());
+}
+
+export function activitiesSummary(params: {
+  from: string;
+  to: string;
+  operatorId?: string;
+  deviceId?: string;
+}): Promise<ActivitiesSummaryResponse> {
+  const url = new URL(
+    `/api/backend/api/v1/analytics/activities/summary`,
     window.location.origin,
   );
   for (const [k, v] of Object.entries(params)) {

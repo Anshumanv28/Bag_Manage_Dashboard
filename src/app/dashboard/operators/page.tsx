@@ -2,7 +2,12 @@
 
 export const dynamic = "force-dynamic";
 
-import { createOperator, listOperators, type Operator } from "@/lib/api";
+import {
+  createOperator,
+  listOperators,
+  patchOperator,
+  type Operator,
+} from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
@@ -29,6 +34,17 @@ export default function OperatorsPage() {
     mutationFn: () => createOperator({ phone, name, password }),
     onSuccess: async () => {
       setPassword("");
+      await qc.invalidateQueries({ queryKey: ["operators"] });
+    },
+  });
+
+  const patchM = useMutation({
+    mutationFn: (input: {
+      phone: string;
+      depositEnabled?: boolean;
+      retrieveEnabled?: boolean;
+    }) => patchOperator(input.phone, input),
+    onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["operators"] });
     },
   });
@@ -120,6 +136,11 @@ export default function OperatorsPage() {
             Created operator {createM.data.operator.phone}
           </div>
         ) : null}
+        {patchM.isError ? (
+          <div className="mt-2 text-xs text-red-600">
+            {normalizeErrorMessage(patchM.error)}
+          </div>
+        ) : null}
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
@@ -140,37 +161,77 @@ export default function OperatorsPage() {
               <tr>
                 <th className="py-2 pr-4">Phone</th>
                 <th className="py-2 pr-4">Name</th>
+                <th className="py-2 pr-4">Deposit</th>
+                <th className="py-2 pr-4">Retrieve</th>
               </tr>
             </thead>
             <tbody>
-              {sorted.map((op) => (
-                <tr
-                  key={op.phone}
-                  className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
-                >
-                  <td className="py-2 pr-4 font-mono text-xs text-zinc-700 dark:text-zinc-300">
-                    {op.phone}
-                  </td>
-                  <td className="py-2 pr-4">{op.name}</td>
-                </tr>
-              ))}
+              {sorted.map((op) => {
+                const depositOn = op.depositEnabled ?? true;
+                const retrieveOn = op.retrieveEnabled ?? true;
+                return (
+                  <tr
+                    key={op.phone}
+                    className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
+                  >
+                    <td className="py-2 pr-4 font-mono text-xs text-zinc-700 dark:text-zinc-300">
+                      {op.phone}
+                    </td>
+                    <td className="py-2 pr-4">{op.name}</td>
+                    <td className="py-2 pr-4">
+                      <label className="inline-flex cursor-pointer items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-zinc-300"
+                          checked={depositOn}
+                          disabled={patchM.isPending}
+                          onChange={(e) =>
+                            patchM.mutate({
+                              phone: op.phone,
+                              depositEnabled: e.target.checked,
+                            })
+                          }
+                        />
+                        <span>{depositOn ? "On" : "Off"}</span>
+                      </label>
+                    </td>
+                    <td className="py-2 pr-4">
+                      <label className="inline-flex cursor-pointer items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-zinc-300"
+                          checked={retrieveOn}
+                          disabled={patchM.isPending}
+                          onChange={(e) =>
+                            patchM.mutate({
+                              phone: op.phone,
+                              retrieveEnabled: e.target.checked,
+                            })
+                          }
+                        />
+                        <span>{retrieveOn ? "On" : "Off"}</span>
+                      </label>
+                    </td>
+                  </tr>
+                );
+              })}
               {listQ.isLoading ? (
                 <tr>
-                  <td className="py-6 text-zinc-500" colSpan={2}>
+                  <td className="py-6 text-zinc-500" colSpan={4}>
                     Loading…
                   </td>
                 </tr>
               ) : null}
               {listQ.isError ? (
                 <tr>
-                  <td className="py-6 text-red-600" colSpan={2}>
+                  <td className="py-6 text-red-600" colSpan={4}>
                     Failed to load operators
                   </td>
                 </tr>
               ) : null}
               {!listQ.isLoading && !listQ.isError && sorted.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-zinc-500" colSpan={2}>
+                  <td className="py-6 text-zinc-500" colSpan={4}>
                     No operators yet.
                   </td>
                 </tr>
