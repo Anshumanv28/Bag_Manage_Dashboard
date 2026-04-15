@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { FiltersBar, defaultFilters, type FiltersValue } from "@/components/Filters";
-import { listBookings } from "@/lib/api";
+import { deleteBooking, listBookings } from "@/lib/api";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -95,6 +95,7 @@ export default function BookingsPage() {
                 <th className="py-2 pr-4">Return operator</th>
                 <th className="py-2 pr-4">Completed</th>
                 <th className="py-2 pr-4">ID</th>
+                <th className="py-2 pr-4">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -128,25 +129,40 @@ export default function BookingsPage() {
                   <td className="py-2 pr-4 font-mono text-xs text-zinc-500 dark:text-zinc-400">
                     {b.id}
                   </td>
+                  <td className="py-2 pr-4">
+                    <button
+                      className="h-8 rounded-md border border-zinc-200 px-2 text-xs hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+                      onClick={async () => {
+                        const ok = window.confirm(
+                          `Delete booking ${b.id}? This removes it from server and will sync to devices.`,
+                        );
+                        if (!ok) return;
+                        await deleteBooking(b.id);
+                        await q.refetch();
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
               {q.isLoading ? (
                 <tr>
-                  <td className="py-6 text-zinc-500" colSpan={8}>
+                  <td className="py-6 text-zinc-500" colSpan={9}>
                     Loading…
                   </td>
                 </tr>
               ) : null}
               {q.isError ? (
                 <tr>
-                  <td className="py-6 text-red-600" colSpan={8}>
+                  <td className="py-6 text-red-600" colSpan={9}>
                     Failed to load bookings
                   </td>
                 </tr>
               ) : null}
               {!q.isLoading && !q.isError && rows.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-zinc-500" colSpan={8}>
+                  <td className="py-6 text-zinc-500" colSpan={9}>
                     No results for this filter.
                   </td>
                 </tr>

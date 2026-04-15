@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { listFlaggedBookings, type FlaggedBookingRow } from "@/lib/api";
+import { listFlaggedBookingsComputed } from "@/lib/api";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -11,10 +11,10 @@ export default function FlaggedBookingsPage() {
 
   const q = useQuery({
     queryKey: ["flagged-bookings", cursor],
-    queryFn: () => listFlaggedBookings({ limit: 100, cursor }),
+    queryFn: () => listFlaggedBookingsComputed({ limit: 100, cursor }),
   });
 
-  const rows = useMemo(() => q.data?.flagged ?? [], [q.data]);
+  const rows = useMemo(() => q.data?.rows ?? [], [q.data]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -50,8 +50,8 @@ export default function FlaggedBookingsPage() {
           <table className="min-w-[960px] w-full text-left text-sm">
             <thead className="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
               <tr>
-                <th className="py-2 pr-4">Flagged at</th>
-                <th className="py-2 pr-4">Reason</th>
+                <th className="py-2 pr-4">Updated at</th>
+                <th className="py-2 pr-4">Reasons</th>
                 <th className="py-2 pr-4">Booking</th>
                 <th className="py-2 pr-4">Status</th>
                 <th className="py-2 pr-4">Rack</th>
@@ -60,16 +60,18 @@ export default function FlaggedBookingsPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r: FlaggedBookingRow) => (
+              {rows.map((r) => (
                 <tr
-                  key={r.id}
+                  key={r.booking.id}
                   className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
                 >
                   <td className="py-2 pr-4 text-xs text-zinc-600 dark:text-zinc-400">
-                    {new Date(r.createdAt).toLocaleString()}
+                    {new Date(r.booking.updatedAt ?? r.booking.createdAt).toLocaleString()}
                   </td>
-                  <td className="py-2 pr-4 font-mono text-xs">{r.reason}</td>
-                  <td className="py-2 pr-4 font-mono text-xs">{r.bookingId}</td>
+                  <td className="py-2 pr-4 font-mono text-xs">
+                    {r.reasons.length ? r.reasons.join(", ") : "unknown"}
+                  </td>
+                  <td className="py-2 pr-4 font-mono text-xs">{r.booking.id}</td>
                   <td className="py-2 pr-4">{r.booking.status}</td>
                   <td className="py-2 pr-4 font-mono text-xs">{r.booking.rackId}</td>
                   <td className="py-2 pr-4 font-mono text-xs">{r.booking.candidateId}</td>

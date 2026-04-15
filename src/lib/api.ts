@@ -17,9 +17,11 @@ export type Booking = {
   rackId: string;
   operatorId: string;
   returnOperatorId: string | null;
-  status: "active" | "complete";
+  status: "active" | "complete" | "flagged" | "deleted";
   createdAt: string;
   completedAt: string | null;
+  updatedAt?: string;
+  deletedAt?: string | null;
 };
 
 export type BookingListResponse = {
@@ -140,35 +142,21 @@ export function patchOperator(
   });
 }
 
-export type FlaggedBookingRow = {
-  id: string;
-  bookingId: string;
-  reason: string;
-  createdAt: string;
-  booking: {
-    id: string;
-    candidateId: string;
-    rackId: string;
-    operatorId: string;
-    status: string;
-    createdAt: string;
-    completedAt: string | null;
-  };
+export type FlaggedBookingsComputedRow = {
+  booking: Booking;
+  reasons: string[];
 };
 
-export type FlaggedBookingsResponse = {
-  flagged: FlaggedBookingRow[];
+export type FlaggedBookingsComputedResponse = {
+  rows: FlaggedBookingsComputedRow[];
   nextCursor: string | null;
 };
 
-export function listFlaggedBookings(params: {
+export function listFlaggedBookingsComputed(params: {
   limit?: number;
   cursor?: string;
-}): Promise<FlaggedBookingsResponse> {
-  const url = new URL(
-    `/api/backend/api/v1/flagged-bookings`,
-    window.location.origin,
-  );
+}): Promise<FlaggedBookingsComputedResponse> {
+  const url = new URL(`/api/backend/api/v1/bookings/flagged`, window.location.origin);
   for (const [k, v] of Object.entries(params)) {
     if (v === undefined || v === null || v === "") continue;
     url.searchParams.set(k, String(v));
@@ -195,6 +183,18 @@ export function listBookings(params: {
     url.searchParams.set(k, String(v));
   }
   return apiFetch(url.pathname + "?" + url.searchParams.toString());
+}
+
+export async function deleteBooking(id: string): Promise<void> {
+  const res = await fetch(`/api/backend/api/v1/bookings/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    cache: "no-store",
+  });
+  if (res.status === 204) return;
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`${res.status} ${res.statusText}${text ? `: ${text}` : ""}`);
+  }
 }
 
 export function bookingSummary(params: {
