@@ -36,17 +36,26 @@ function fmtBucketLabel(s: string): string {
 export default function DashboardOverviewPage() {
   const [filters, setFilters] = useState<FiltersValue>(() => defaultFilters());
 
+  const statusParam: "" | "active" | "complete" = filters.status;
+
+  // Most analytics endpoints require a time range; keep it stable.
   const range = useMemo(
     () => ({ from: toIso(filters.from), to: toIso(filters.to) }),
     [filters.from, filters.to],
   );
 
+  // For the summary cards, allow "All"/"Active" to mean all-time (no createdAt window).
+  const summaryRange = useMemo(() => {
+    if (statusParam === "complete") return range;
+    return {};
+  }, [range, statusParam]);
+
   const summaryQ = useQuery({
     queryKey: ["bookingSummary", filters],
     queryFn: () =>
       bookingSummary({
-        ...range,
-        status: filters.status || undefined,
+        ...summaryRange,
+        status: statusParam || undefined,
         operatorId: filters.operatorId || undefined,
       }),
   });
@@ -58,7 +67,7 @@ export default function DashboardOverviewPage() {
         ...range,
         bucket: filters.bucket,
         timezone: "UTC",
-        status: filters.status || undefined,
+        status: statusParam || undefined,
         operatorId: filters.operatorId || undefined,
       }),
   });

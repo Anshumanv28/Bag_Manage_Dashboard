@@ -15,13 +15,17 @@ export default function BookingsPage() {
   const [filters, setFilters] = useState<FiltersValue>(() => defaultFilters());
   const [cursor, setCursor] = useState<string | undefined>(undefined);
 
-  const range = useMemo(
-    () => ({ from: toIso(filters.from), to: toIso(filters.to) }),
-    [filters.from, filters.to],
-  );
-
   const statusParam: "active" | "complete" | undefined =
     filters.status === "" ? undefined : filters.status;
+
+  const range = useMemo(() => {
+    // The default 24h createdAt window can hide older bookings.
+    // - "All": show across all time (no createdAt filter)
+    // - "Active": show across all time (active bookings can be long-lived)
+    // - "Complete": keep the time window (useful for dashboard slices)
+    if (!statusParam || statusParam === "active") return {};
+    return { from: toIso(filters.from), to: toIso(filters.to) };
+  }, [filters.from, filters.to, statusParam]);
 
   const q = useQuery({
     queryKey: ["bookings", filters, cursor],
