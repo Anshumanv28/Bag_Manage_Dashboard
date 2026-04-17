@@ -8,6 +8,7 @@ const nav = [
   { href: "/dashboard/bookings", label: "Bookings" },
   { href: "/dashboard/flagged", label: "Flagged" },
   { href: "/dashboard/sync", label: "Sync" },
+  { href: "/dashboard/scan-events", label: "Scan events" },
   { href: "/dashboard/operators", label: "Operators" },
 ];
 

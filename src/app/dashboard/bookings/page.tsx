@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import { FiltersBar, defaultFilters, type FiltersValue } from "@/components/Filters";
 import { deleteBooking, listBookings } from "@/lib/api";
+import { formatIst } from "@/lib/time";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -105,7 +106,7 @@ export default function BookingsPage() {
                   className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
                 >
                   <td className="py-2 pr-4 whitespace-nowrap">
-                    {new Date(b.createdAt).toLocaleString()}
+                    {formatIst(b.createdAt)}
                   </td>
                   <td className="py-2 pr-4">
                     <span
@@ -113,7 +114,11 @@ export default function BookingsPage() {
                         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
                         b.status === "active"
                           ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                          : "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
+                          : b.status === "flagged"
+                            ? "bg-yellow-50 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300"
+                            : b.status === "complete"
+                              ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                              : "bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
                       ].join(" ")}
                     >
                       {b.status}
@@ -124,7 +129,7 @@ export default function BookingsPage() {
                   <td className="py-2 pr-4">{b.operatorId}</td>
                   <td className="py-2 pr-4">{b.returnOperatorId ?? "—"}</td>
                   <td className="py-2 pr-4 whitespace-nowrap">
-                    {b.completedAt ? new Date(b.completedAt).toLocaleString() : "—"}
+                    {formatIst(b.completedAt)}
                   </td>
                   <td className="py-2 pr-4 font-mono text-xs text-zinc-500 dark:text-zinc-400">
                     {b.id}

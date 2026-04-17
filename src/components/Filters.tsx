@@ -9,6 +9,7 @@ export type FiltersValue = {
   bucket: "hour" | "day";
   status: "" | "active" | "complete";
   operatorId: string;
+  deviceId: string;
   rackId: string;
   candidateId: string;
 };
@@ -36,6 +37,7 @@ export function defaultFilters(): FiltersValue {
     bucket: "hour",
     status: "",
     operatorId: "",
+    deviceId: "",
     rackId: "",
     candidateId: "",
   };
@@ -47,12 +49,14 @@ export function FiltersBar({
   showStatus = true,
   showBucket = true,
   showSearch = false,
+  showDeviceId = false,
 }: {
   value: FiltersValue;
   onChange: (next: FiltersValue) => void;
   showStatus?: boolean;
   showBucket?: boolean;
   showSearch?: boolean;
+  showDeviceId?: boolean;
 }) {
   const operatorsQ = useQuery({
     queryKey: ["operators"],
@@ -104,6 +108,20 @@ export function FiltersBar({
             <div className="text-xs text-red-600">Failed to load operators</div>
           ) : null}
         </label>
+
+        {showDeviceId ? (
+          <label className="flex flex-col gap-1 md:col-span-2">
+            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300">
+              Device ID
+            </span>
+            <input
+              value={value.deviceId}
+              onChange={(e) => onChange({ ...value, deviceId: e.target.value })}
+              placeholder="e.g. 1712345678"
+              className="h-10 rounded-md border border-zinc-200 bg-white px-3 text-sm dark:border-zinc-800 dark:bg-zinc-900"
+            />
+          </label>
+        ) : null}
 
         {showStatus ? (
           <label className="flex flex-col gap-1 md:col-span-2">

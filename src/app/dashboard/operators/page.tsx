@@ -30,8 +30,11 @@ export default function OperatorsPage() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
 
+  const phoneDigits = phone.replace(/\D/g, "");
+  const phoneValid = phoneDigits.length === 10;
+
   const createM = useMutation({
-    mutationFn: () => createOperator({ phone, name, password }),
+    mutationFn: () => createOperator({ phone: phoneDigits, name, password }),
     onSuccess: async () => {
       setPassword("");
       await qc.invalidateQueries({ queryKey: ["operators"] });
@@ -49,11 +52,39 @@ export default function OperatorsPage() {
     },
   });
 
+  const bulkM = useMutation({
+    mutationFn: async (input: {
+      kind: "deposit" | "retrieve";
+      enabled: boolean;
+    }) => {
+      const ops = (listQ.data?.operators ?? []) as Operator[];
+      for (const op of ops) {
+        await patchOperator(op.phone, {
+          depositEnabled: input.kind === "deposit" ? input.enabled : undefined,
+          retrieveEnabled: input.kind === "retrieve" ? input.enabled : undefined,
+        });
+      }
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["operators"] });
+    },
+  });
+
   const createDisabled =
     createM.isPending ||
-    phone.trim().length < 3 ||
+    !phoneValid ||
     name.trim().length < 1 ||
     password.length < 6;
+
+  const depositAllOn = useMemo(() => {
+    if (operators.length === 0) return false;
+    return operators.every((o) => (o.depositEnabled ?? true) === true);
+  }, [operators]);
+
+  const retrieveAllOn = useMemo(() => {
+    if (operators.length === 0) return false;
+    return operators.every((o) => (o.retrieveEnabled ?? true) === true);
+  }, [operators]);
 
   const sorted = useMemo(() => {
     const copy: Operator[] = [...operators];
@@ -82,18 +113,32 @@ export default function OperatorsPage() {
           }}
         >
           <div className="md:col-span-1">
-            <label className="text-xs text-zinc-500 dark:text-zinc-400">Phone</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400">
+              Phone
+            </label>
             <input
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value.replace(/\D/g, "").slice(0, 10);
+                setPhone(next);
+              }}
               placeholder="9990001114"
               className="mt-1 h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-zinc-950"
               autoComplete="off"
+              inputMode="numeric"
+              pattern="[0-9]*"
             />
+            {!phoneValid && phone.length > 0 ? (
+              <div className="mt-1 text-xs text-red-600">
+                Phone must be exactly 10 digits.
+              </div>
+            ) : null}
           </div>
 
           <div className="md:col-span-1">
-            <label className="text-xs text-zinc-500 dark:text-zinc-400">Name</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400">
+              Name
+            </label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -104,7 +149,9 @@ export default function OperatorsPage() {
           </div>
 
           <div className="md:col-span-1">
-            <label className="text-xs text-zinc-500 dark:text-zinc-400">Password</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400">
+              Password
+            </label>
             <input
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -113,6 +160,11 @@ export default function OperatorsPage() {
               className="mt-1 h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-zinc-950"
               autoComplete="new-password"
             />
+            {password.length > 0 && password.length < 6 ? (
+              <div className="mt-1 text-xs text-red-600">
+                Password must be at least 6 characters.
+              </div>
+            ) : null}
           </div>
 
           <div className="md:col-span-1 flex items-end">
@@ -146,13 +198,43 @@ export default function OperatorsPage() {
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm font-semibold">All operators</div>
-          <button
-            onClick={() => listQ.refetch()}
-            className="h-9 rounded-md border border-zinc-200 px-3 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
-            disabled={listQ.isFetching}
-          >
-            {listQ.isFetching ? "Refreshing…" : "Refresh"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const next = !depositAllOn;
+                const ok = window.confirm(
+                  `${next ? "Enable" : "Disable"} Deposit for ALL operators?`,
+                );
+                if (!ok) return;
+                bulkM.mutate({ kind: "deposit", enabled: next });
+              }}
+              className="h-9 rounded-md border border-zinc-200 px-3 text-sm hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+              disabled={listQ.isFetching || bulkM.isPending || patchM.isPending}
+            >
+              {bulkM.isPending ? "Updating…" : depositAllOn ? "Disable deposit" : "Enable deposit"}
+            </button>
+            <button
+              onClick={() => {
+                const next = !retrieveAllOn;
+                const ok = window.confirm(
+                  `${next ? "Enable" : "Disable"} Retrieve for ALL operators?`,
+                );
+                if (!ok) return;
+                bulkM.mutate({ kind: "retrieve", enabled: next });
+              }}
+              className="h-9 rounded-md bg-zinc-900 px-3 text-sm text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              disabled={listQ.isFetching || bulkM.isPending || patchM.isPending}
+            >
+              {bulkM.isPending ? "Updating…" : retrieveAllOn ? "Disable retrieve" : "Enable retrieve"}
+            </button>
+            <button
+              onClick={() => listQ.refetch()}
+              className="h-9 rounded-md border border-zinc-200 px-3 text-sm hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-800 dark:hover:bg-zinc-900"
+              disabled={listQ.isFetching}
+            >
+              {listQ.isFetching ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
         </div>
 
         <div className="mt-4 overflow-auto">
@@ -239,8 +321,18 @@ export default function OperatorsPage() {
             </tbody>
           </table>
         </div>
+
+        {bulkM.isError ? (
+          <div className="mt-2 text-xs text-red-600">
+            {normalizeErrorMessage(bulkM.error)}
+          </div>
+        ) : null}
+        {bulkM.isSuccess ? (
+          <div className="mt-2 text-xs text-green-700 dark:text-green-400">
+            Updated all operators.
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
-

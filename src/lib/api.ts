@@ -85,6 +85,28 @@ export type SyncEventsResponse = {
   nextCursor: string | null;
 };
 
+export type ScanEventRow = {
+  id: string;
+  operatorId: string;
+  deviceId: string | null;
+  operation: "deposit" | "retrieve";
+  eventType:
+    | "candidate_scanned"
+    | "rack_scanned"
+    | "deposit_cancelled"
+    | "retrieve_cancelled";
+  candidateId: string | null;
+  rackId: string | null;
+  occurredAt: string;
+  createdAt: string;
+  metadata: unknown;
+};
+
+export type ScanEventsResponse = {
+  rows: ScanEventRow[];
+  nextCursor: string | null;
+};
+
 export type ActivitiesSummaryResponse = {
   from: string;
   to: string;
@@ -276,6 +298,24 @@ export function syncEvents(params: {
   cursor?: string;
 }): Promise<SyncEventsResponse> {
   const url = new URL(`/api/backend/api/v1/analytics/sync/events`, window.location.origin);
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === "") continue;
+    url.searchParams.set(k, String(v));
+  }
+  return apiFetch(url.pathname + "?" + url.searchParams.toString());
+}
+
+export function scanEvents(params: {
+  from: string;
+  to: string;
+  operatorId?: string;
+  deviceId?: string;
+  operation?: "deposit" | "retrieve";
+  eventType?: ScanEventRow["eventType"];
+  limit?: number;
+  cursor?: string;
+}): Promise<ScanEventsResponse> {
+  const url = new URL(`/api/backend/api/v1/analytics/scan-events`, window.location.origin);
   for (const [k, v] of Object.entries(params)) {
     if (v === undefined || v === null || v === "") continue;
     url.searchParams.set(k, String(v));
