@@ -8,7 +8,10 @@ import { formatIst } from "@/lib/time";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-type FlagReason = "candidate_duplicate_active" | "rack_duplicate_active";
+type FlagReason =
+  | "candidate_duplicate_active"
+  | "rack_duplicate_active"
+  | "retrieve_duplicate";
 
 function fmtReason(r: string): string {
   return r.replaceAll("_", " ");
@@ -16,7 +19,12 @@ function fmtReason(r: string): string {
 
 function matchesSearch(
   search: string,
-  v: { bookingId: string; rackId: string; candidateId: string; operatorId: string },
+  v: {
+    bookingId: string;
+    rackId: string;
+    candidateId: string;
+    operatorId: string;
+  },
 ): boolean {
   const s = search.trim().toLowerCase();
   if (!s) return true;
@@ -44,8 +52,21 @@ export default function FlaggedBookingsPage() {
   });
 
   const baseRows = useMemo(() => q.data?.rows ?? [], [q.data]);
-  const allRows = useMemo(() => [...baseRows, ...more.rows], [baseRows, more.rows]);
+  const allRows = useMemo(
+    () => [...baseRows, ...more.rows],
+    [baseRows, more.rows],
+  );
   const nextCursor = more.nextCursor ?? q.data?.nextCursor ?? null;
+
+  // Some bookings can remain `flagged` even when they are no longer part of a
+  // duplicate-active set (e.g. if the counterpart booking was completed/deleted).
+  // Treat these as "retrieve duplicates" for dashboard review.
+  const allRowsWithDerivedReasons = useMemo(() => {
+    return allRows.map((r) => {
+      if (r.reasons.length > 0) return r;
+      return { ...r, reasons: ["retrieve_duplicate"] };
+    });
+  }, [allRows]);
 
   async function loadMore() {
     if (more.loading) return;
@@ -67,7 +88,7 @@ export default function FlaggedBookingsPage() {
   }
 
   const filtered = useMemo(() => {
-    return allRows.filter((r) => {
+    return allRowsWithDerivedReasons.filter((r) => {
       if (only && !r.reasons.includes(only)) return false;
       return matchesSearch(search, {
         bookingId: r.booking.id,
@@ -76,7 +97,7 @@ export default function FlaggedBookingsPage() {
         operatorId: r.booking.operatorId,
       });
     });
-  }, [allRows, only, search]);
+  }, [allRowsWithDerivedReasons, only, search]);
 
   const candidateGroups = useMemo(() => {
     const byKey = new Map<
@@ -118,12 +139,28 @@ export default function FlaggedBookingsPage() {
     return [...byKey.values()].sort((a, b) => b.updatedAt - a.updatedAt);
   }, [filtered]);
 
+  const retrieveDuplicates = useMemo(() => {
+    return filtered
+      .filter((r) => r.reasons.includes("retrieve_duplicate"))
+      .slice()
+      .sort((a, b) => {
+        const at = new Date(
+          a.booking.updatedAt ?? a.booking.createdAt,
+        ).getTime();
+        const bt = new Date(
+          b.booking.updatedAt ?? b.booking.createdAt,
+        ).getTime();
+        return bt - at;
+      });
+  }, [filtered]);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-semibold">Flagged bookings</h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Active mappings that share a candidate ID or rack ID across multiple bookings. Resolve with operators in the field.
+          Active mappings that share a candidate ID or rack ID across multiple
+          bookings. Resolve with operators in the field.
         </p>
       </div>
 
@@ -155,7 +192,9 @@ export default function FlaggedBookingsPage() {
 
         <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-end">
           <div className="flex-1">
-            <label className="text-xs text-zinc-500 dark:text-zinc-400">Search</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400">
+              Search
+            </label>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -164,15 +203,20 @@ export default function FlaggedBookingsPage() {
             />
           </div>
           <div className="w-full md:w-64">
-            <label className="text-xs text-zinc-500 dark:text-zinc-400">Reason</label>
+            <label className="text-xs text-zinc-500 dark:text-zinc-400">
+              Reason
+            </label>
             <select
               value={only}
               onChange={(e) => setOnly(e.target.value as "" | FlagReason)}
               className="mt-1 h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-800 dark:bg-zinc-950"
             >
               <option value="">All</option>
-              <option value="candidate_duplicate_active">Candidate duplicate</option>
+              <option value="candidate_duplicate_active">
+                Candidate duplicate
+              </option>
               <option value="rack_duplicate_active">Rack duplicate</option>
+              <option value="retrieve_duplicate">Retrieve duplicate</option>
             </select>
           </div>
         </div>
@@ -182,7 +226,11 @@ export default function FlaggedBookingsPage() {
             <div className="text-sm font-semibold">Candidate duplicates</div>
             <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               Groups: {candidateGroups.length} • Rows:{" "}
-              {filtered.filter((r) => r.reasons.includes("candidate_duplicate_active")).length}
+              {
+                filtered.filter((r) =>
+                  r.reasons.includes("candidate_duplicate_active"),
+                ).length
+              }
             </div>
             <div className="mt-3 flex flex-col gap-3">
               {candidateGroups.map((g) => (
@@ -227,10 +275,16 @@ export default function FlaggedBookingsPage() {
                               className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
                             >
                               <td className="py-1 pr-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-                                {formatIst(r.booking.updatedAt ?? r.booking.createdAt)}
+                                {formatIst(
+                                  r.booking.updatedAt ?? r.booking.createdAt,
+                                )}
                               </td>
-                              <td className="py-1 pr-3 font-mono">{r.booking.rackId}</td>
-                              <td className="py-1 pr-3 font-mono">{r.booking.operatorId}</td>
+                              <td className="py-1 pr-3 font-mono">
+                                {r.booking.rackId}
+                              </td>
+                              <td className="py-1 pr-3 font-mono">
+                                {r.booking.operatorId}
+                              </td>
                               <td className="py-1 pr-3">{r.booking.status}</td>
                               <td className="py-1 pr-3 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
                                 {r.booking.id}
@@ -241,8 +295,7 @@ export default function FlaggedBookingsPage() {
                     </table>
                   </div>
                   <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-                    Reasons:{" "}
-                    {fmtReason("candidate_duplicate_active")}
+                    Reasons: {fmtReason("candidate_duplicate_active")}
                   </div>
                 </div>
               ))}
@@ -255,7 +308,9 @@ export default function FlaggedBookingsPage() {
                 </div>
               ) : null}
               {!q.isLoading && !q.isError && candidateGroups.length === 0 ? (
-                <div className="py-6 text-xs text-zinc-500">No candidate duplicates.</div>
+                <div className="py-6 text-xs text-zinc-500">
+                  No candidate duplicates.
+                </div>
               ) : null}
             </div>
           </div>
@@ -264,7 +319,11 @@ export default function FlaggedBookingsPage() {
             <div className="text-sm font-semibold">Rack duplicates</div>
             <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               Groups: {rackGroups.length} • Rows:{" "}
-              {filtered.filter((r) => r.reasons.includes("rack_duplicate_active")).length}
+              {
+                filtered.filter((r) =>
+                  r.reasons.includes("rack_duplicate_active"),
+                ).length
+              }
             </div>
             <div className="mt-3 flex flex-col gap-3">
               {rackGroups.map((g) => (
@@ -309,10 +368,16 @@ export default function FlaggedBookingsPage() {
                               className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
                             >
                               <td className="py-1 pr-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-                                {formatIst(r.booking.updatedAt ?? r.booking.createdAt)}
+                                {formatIst(
+                                  r.booking.updatedAt ?? r.booking.createdAt,
+                                )}
                               </td>
-                              <td className="py-1 pr-3 font-mono">{r.booking.candidateId}</td>
-                              <td className="py-1 pr-3 font-mono">{r.booking.operatorId}</td>
+                              <td className="py-1 pr-3 font-mono">
+                                {r.booking.candidateId}
+                              </td>
+                              <td className="py-1 pr-3 font-mono">
+                                {r.booking.operatorId}
+                              </td>
                               <td className="py-1 pr-3">{r.booking.status}</td>
                               <td className="py-1 pr-3 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
                                 {r.booking.id}
@@ -323,8 +388,7 @@ export default function FlaggedBookingsPage() {
                     </table>
                   </div>
                   <div className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
-                    Reasons:{" "}
-                    {fmtReason("rack_duplicate_active")}
+                    Reasons: {fmtReason("rack_duplicate_active")}
                   </div>
                 </div>
               ))}
@@ -337,9 +401,65 @@ export default function FlaggedBookingsPage() {
                 </div>
               ) : null}
               {!q.isLoading && !q.isError && rackGroups.length === 0 ? (
-                <div className="py-6 text-xs text-zinc-500">No rack duplicates.</div>
+                <div className="py-6 text-xs text-zinc-500">
+                  No rack duplicates.
+                </div>
               ) : null}
             </div>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+          <div className="text-sm font-semibold">Retrieve duplicates</div>
+          <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            Bookings still marked <span className="font-mono">flagged</span> but
+            not currently part of a candidate/rack duplicate-active group.
+          </div>
+          <div className="mt-3 overflow-auto">
+            <table className="min-w-[820px] w-full text-left text-xs">
+              <thead className="border-b border-zinc-200 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                <tr>
+                  <th className="py-1 pr-3">Updated</th>
+                  <th className="py-1 pr-3">Rack</th>
+                  <th className="py-1 pr-3">Candidate</th>
+                  <th className="py-1 pr-3">Operator</th>
+                  <th className="py-1 pr-3">Status</th>
+                  <th className="py-1 pr-3">Booking</th>
+                </tr>
+              </thead>
+              <tbody>
+                {retrieveDuplicates.map((r) => (
+                  <tr
+                    key={r.booking.id}
+                    className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
+                  >
+                    <td className="py-1 pr-3 whitespace-nowrap text-zinc-500 dark:text-zinc-400">
+                      {formatIst(r.booking.updatedAt ?? r.booking.createdAt)}
+                    </td>
+                    <td className="py-1 pr-3 font-mono">{r.booking.rackId}</td>
+                    <td className="py-1 pr-3 font-mono">
+                      {r.booking.candidateId}
+                    </td>
+                    <td className="py-1 pr-3 font-mono">
+                      {r.booking.operatorId}
+                    </td>
+                    <td className="py-1 pr-3">{r.booking.status}</td>
+                    <td className="py-1 pr-3 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+                      {r.booking.id}
+                    </td>
+                  </tr>
+                ))}
+                {!q.isLoading &&
+                !q.isError &&
+                retrieveDuplicates.length === 0 ? (
+                  <tr>
+                    <td className="py-6 text-xs text-zinc-500" colSpan={6}>
+                      None.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
           </div>
         </div>
 

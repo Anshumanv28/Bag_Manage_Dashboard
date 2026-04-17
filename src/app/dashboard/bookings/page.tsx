@@ -2,7 +2,11 @@
 
 export const dynamic = "force-dynamic";
 
-import { FiltersBar, defaultFilters, type FiltersValue } from "@/components/Filters";
+import {
+  FiltersBar,
+  defaultFilters,
+  type FiltersValue,
+} from "@/components/Filters";
 import { deleteBooking, listBookings } from "@/lib/api";
 import { formatIst } from "@/lib/time";
 import { useMemo, useState } from "react";
@@ -179,4 +183,3 @@ export default function BookingsPage() {
     </div>
   );
 }
-
