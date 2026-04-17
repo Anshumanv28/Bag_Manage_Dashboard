@@ -110,6 +110,7 @@ export default function ScanEventsPage() {
                 <option value="rack_scanned">rack_scanned</option>
                 <option value="deposit_cancelled">deposit_cancelled</option>
                 <option value="retrieve_cancelled">retrieve_cancelled</option>
+                <option value="scan_rejected">scan_rejected</option>
               </select>
             </div>
           </div>

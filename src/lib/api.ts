@@ -94,7 +94,8 @@ export type ScanEventRow = {
     | "candidate_scanned"
     | "rack_scanned"
     | "deposit_cancelled"
-    | "retrieve_cancelled";
+    | "retrieve_cancelled"
+    | "scan_rejected";
   candidateId: string | null;
   rackId: string | null;
   occurredAt: string;
