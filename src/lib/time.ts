@@ -6,7 +6,8 @@ function parseUtcAware(iso: string): Date {
   const t = iso.trim();
   const hasZone =
     /[zZ]$/.test(t) ||
-    /[+-]\d{2}:?\d{2}$/.test(t) ||
+    // +05:30 / +0530 / +00 / +0000
+    /[+-]\d{2}(?::?\d{2})?$/.test(t) ||
     /[+-]\d{4}$/.test(t);
   if (hasZone) return new Date(t);
   const naive =
